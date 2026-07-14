@@ -34,6 +34,7 @@ enum class ErrorCode {
     subprocess,      // fork/exec/pipe failure
     directive_parse, // malformed '#=' variable line in a partial
     undefined_var,   // ${name} with no matching #= definition
+    config,          // invalid config value/state (bad address, subnet full, dup)
 };
 
 // Where in the USER'S config files a problem lives — like the file:line in a

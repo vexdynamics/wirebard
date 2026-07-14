@@ -4,11 +4,14 @@
 #
 # Zero third-party dependencies, by design (inherited from haladin).
 add_library(wirebard_lib STATIC
+    alloc.cpp
     cli.cpp
     directives.cpp
     error.cpp
     fs.cpp
+    net.cpp
     partial.cpp
+    peer.cpp
     project.cpp
     subprocess.cpp
     vars.cpp
