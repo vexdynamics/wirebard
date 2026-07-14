@@ -4,14 +4,13 @@ WireGuard config manager & compiler. Describe each network once in a folder of
 *partials*, and wirebard substitutes variables, checks the address plan, and
 compiles everything into a per-interface `/etc/wireguard/<network>.conf` —
 installed 0600 and reloaded live with `wg syncconf` so connected peers never
-drop. It also speaks a small JSON contract over SSH so a client tool (baki) can
+drop. It also speaks a small JSON contract over SSH, so a machine caller can
 add and remove peers while wirebard owns every policy decision — address,
 AllowedIPs, DNS, MTU. That is all it does.
 
-Also: a C++23 learning project, the sibling of [haladin](../haladin) and seeded
-from its scaffold. Same philosophy — do exactly one job, own no orchestration,
-generate no artifact a human could write. The source carries `C++ LESSON:`
-teaching comments aimed at someone coming from Node.js/Go.
+Also: a C++23 learning project. The philosophy — do exactly one job, own no
+orchestration, generate no artifact a human could write. The source carries
+`C++ LESSON:` teaching comments aimed at someone coming from Node.js/Go.
 
 ## Install
 
@@ -102,7 +101,7 @@ subfolder of partials that compiles to its own `<network>.conf`:
     │   ├── template.conf             copy-me reference; NOT compiled
     │   ├── 00-main.conf              [Interface] + every #= variable
     │   ├── 10-alice.conf             one [Peer] per file...
-    │   └── 20-baki-web01.conf        ...merged in FILENAME ORDER
+    │   └── 20-web01.conf             ...merged in FILENAME ORDER
     └── roam/
         ├── 00-main.conf              tunnel = full (road-warrior)
         └── 10-laptop.conf
@@ -172,7 +171,7 @@ wirebard build [network]     # compile → /etc/wireguard/<network>.conf (0600),
 wirebard apply [network]     # build, then install + reload live (needs sudo)
 wirebard apply --dry-run     # print the exact wg/systemctl plan; touch nothing
 wirebard list                # networks and their peers, human-readable
-wirebard network list --json # machine-readable inventory (the baki contract)
+wirebard network list --json # machine-readable inventory (JSON contract)
 wirebard peer add    --network N --pubkey BASE64 --name LABEL [--json] [--dry-run]
 wirebard peer remove --network N --pubkey BASE64 [--json] [--dry-run]
 ```
@@ -184,14 +183,14 @@ Exit codes: `0` ok · `1` config/validation failure · `2` usage · `3`
 environment (no project, `wg`/`systemctl` missing, apply failed). Add
 `--verbose` to echo every external command, copy-pasteable.
 
-## The machine contract (baki)
+## The machine contract
 
 `peer add` / `peer remove` / `network list` are the imperative, JSON-speaking
-interface a client tool drives over SSH. wirebard owns every policy decision;
+interface a machine caller drives over SSH. wirebard owns every policy decision;
 the caller only generates its keypair locally and fills the returned config.
 
 ```bash
-wirebard peer add --network backups --pubkey <PUB> --name baki-web01 --json
+wirebard peer add --network backups --pubkey <PUB> --name web01 --json
 # {"network":"backups","type":"isolated","address":"10.8.2.3/24",
 #  "server_public_key":"...","endpoint":"vpn.example.com:51820",
 #  "client_config":"[Interface]\nPrivateKey = {{PRIVATE_KEY}}\n..."}
@@ -250,5 +249,5 @@ touches the live interface until the next `apply` — inspect with
   fd, lock, and temp dir.
 - House rules live in CLAUDE.md; the conventions (errors as values, pure core
   vs OS boundary vs thin commands, determinism, loud failure, secrets never in
-  logs) are inherited from haladin and non-negotiable.
+  logs) are non-negotiable.
 ```
