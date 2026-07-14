@@ -2,7 +2,7 @@
 # executable and the test binary can link it — you can't link main.cpp into a
 # test. (Node/Go equivalent: everything importable, main is a thin entry.)
 #
-# Zero third-party dependencies, by design (inherited from haladin).
+# Zero third-party dependencies, by design.
 add_library(wirebard_lib STATIC
     alloc.cpp
     apply.cpp

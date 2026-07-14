@@ -28,7 +28,7 @@ protected:
 
 TEST_F(PartialTest, LoadsInMergeOrderExcludingTemplate) {
     write("00-main.conf", "#= listen_port = 51820\n[Interface]\nListenPort = ${listen_port}\n");
-    write("20-baki.conf", "[Peer]\nPublicKey = bbb\n");
+    write("20-bravo.conf", "[Peer]\nPublicKey = bbb\n");
     write("10-alice.conf", "[Peer]\nPublicKey = aaa\n");
     write("template.conf", "[Peer]\nPublicKey = TEMPLATE\n"); // must NOT be loaded
     write("server.key", "PRIVATEKEYBYTES");                   // not a .conf, ignored
@@ -42,7 +42,7 @@ TEST_F(PartialTest, LoadsInMergeOrderExcludingTemplate) {
     ASSERT_EQ(parts->size(), 3u); // 00, 10, 20 — template.conf and server.key excluded
     EXPECT_EQ((*parts)[0].path.filename(), "00-main.conf");
     EXPECT_EQ((*parts)[1].path.filename(), "10-alice.conf");
-    EXPECT_EQ((*parts)[2].path.filename(), "20-baki.conf");
+    EXPECT_EQ((*parts)[2].path.filename(), "20-bravo.conf");
 
     // 00-main had its ${listen_port} substituted.
     EXPECT_NE((*parts)[0].raw.find("ListenPort = 51820"), std::string::npos);

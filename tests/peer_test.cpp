@@ -81,18 +81,18 @@ TEST(PeerTest, BadAllowedIPsIsAnError) {
 }
 
 TEST(PeerTest, RenderPeerPartialRoundTripsThroughCollect) {
-    std::string text = wirebard::render_peer_partial(
-        "baki-web01", "PUBKEY=", wirebard::parse_ipv4("10.8.2.7").value());
-    EXPECT_EQ(text, "# wirebard: name=baki-web01\n[Peer]\nPublicKey = PUBKEY=\n"
+    std::string text =
+        wirebard::render_peer_partial("web01", "PUBKEY=", wirebard::parse_ipv4("10.8.2.7").value());
+    EXPECT_EQ(text, "# wirebard: name=web01\n[Peer]\nPublicKey = PUBKEY=\n"
                     "AllowedIPs = 10.8.2.7/32\n");
 
     // What we render must parse back to the same assignment.
     std::vector<wirebard::Partial> parts;
-    parts.push_back(part("20-baki-web01.conf", text));
+    parts.push_back(part("20-web01.conf", text));
     auto got = wirebard::collect_assignments(parts);
     ASSERT_TRUE(got.has_value());
     ASSERT_EQ(got->size(), 1u);
-    EXPECT_EQ((*got)[0].name, "baki-web01");
+    EXPECT_EQ((*got)[0].name, "web01");
     EXPECT_EQ(wirebard::format_ipv4((*got)[0].address), "10.8.2.7");
 }
 
@@ -112,7 +112,7 @@ TEST(PeerTest, WireguardKeyValidation) {
 TEST(PeerTest, NextPeerFilenameStepsPastHighestAndSanitizes) {
     namespace fs = std::filesystem;
     std::vector<fs::path> existing = {"00-main.conf", "10-alice.conf", "20-bob.conf"};
-    EXPECT_EQ(wirebard::next_peer_filename(existing, "baki web/01"), "30-baki-web-01.conf");
+    EXPECT_EQ(wirebard::next_peer_filename(existing, "web app/01"), "30-web-app-01.conf");
 
     // Empty network → first peer at 10.
     EXPECT_EQ(wirebard::next_peer_filename({}, "solo"), "10-solo.conf");

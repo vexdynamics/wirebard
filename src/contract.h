@@ -1,7 +1,7 @@
-// contract.h — the baki-facing outputs: the rendered client config and the
+// contract.h — the caller-facing outputs: the rendered client config and the
 // JSON envelopes for `peer add` and `network list`. Pure string-building over
-// structured inputs, so the exact bytes baki receives are unit-tested here;
-// the commands (M6) just gather the inputs and print the result.
+// structured inputs, so the exact bytes the caller receives are unit-tested
+// here; the commands (M6) just gather the inputs and print the result.
 //
 // See docs/design/peer-provisioning.md §4/§7 for the contract this implements.
 #pragma once
@@ -13,8 +13,8 @@ namespace wirebard {
 
 // Everything needed to render one peer's client config and its JSON envelope.
 // `full_tunnel` is the network's `tunnel = full` policy — the ONLY thing that
-// differs between network kinds, and the reason wirebard (not baki) renders
-// this: only wirebard knows the AllowedIPs policy.
+// differs between network kinds, and the reason wirebard (not the caller)
+// renders this: only wirebard knows the AllowedIPs policy.
 struct PeerResult {
     std::string network;
     bool full_tunnel;    // true → type "proxy" / AllowedIPs 0.0.0.0/0; false → "isolated"

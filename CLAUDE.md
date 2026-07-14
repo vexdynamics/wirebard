@@ -4,12 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-wirebard is a WireGuard config manager/compiler CLI (C++23), the sibling of
-haladin (../haladin — the HAProxy config manager this scaffold was seeded
-from). The domain model is NOT designed yet: how config fragments compose
-into `/etc/wireguard/wgN.conf`, what the source format looks like, and what
-each command really does are open questions. What IS settled is the
-philosophy, inherited verbatim from haladin: the tool does exactly its one
+wirebard is a WireGuard config manager/compiler CLI (C++23). The domain
+model — how config fragments compose into `/etc/wireguard/<network>.conf`, the
+source format, and what each command does — is designed in
+`docs/design/peer-provisioning.md` and implemented (M1–M6). The settled
+philosophy: the tool does exactly its one
 job and nothing else — bloat is a bug, orchestration belongs to standard
 tools, artifacts a human could own (compose files, Dockerfiles, templates)
 are hand-written and never generated, and the project directory should
@@ -17,15 +16,14 @@ mirror the real system location so backing it up recreates the server.
 Zero third-party dependencies.
 
 **This is also a C++ learning project.** The owner (Kristian) comes from
-Node.js/Go and is learning C++ through this codebase (continuing from
-haladin). All code carries `C++ LESSON:` teaching comments that map concepts
+Node.js/Go and is learning C++ through this codebase. All code carries
+`C++ LESSON:` teaching comments that map concepts
 to Node/Go equivalents. When writing new code here: keep that style — teach
 each new C++ concept once, at its first use, with a Node/Go analogy; don't
 narrate every line. Concepts already taught in the seeded modules (RAII,
 Result/expected, string_view lifetime, sink arguments...) don't need
 re-teaching — build on them. Idioms must stay veteran-grade modern C++23.
-Keep the milestone storytelling in commit messages (haladin reached M8;
-wirebard starts its own M-series at M1).
+Keep the milestone storytelling in commit messages (wirebard's M-series).
 
 ## Commands
 

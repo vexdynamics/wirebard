@@ -1,6 +1,6 @@
 // vars.h — variable definitions (#= lines in partials) and ${...}
-// substitution. Ported from haladin; the machinery is domain-agnostic (it
-// knows nothing about WireGuard or HAProxy — just text and a sigil).
+// substitution. The machinery is domain-agnostic (it knows nothing about
+// WireGuard — just text and a sigil).
 #pragma once
 
 #include <filesystem>

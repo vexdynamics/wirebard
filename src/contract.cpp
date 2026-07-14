@@ -8,8 +8,8 @@ namespace wirebard {
 
 namespace {
 
-// The contract's `type` field name for a tunnel mode (baki's vocabulary; the
-// #= var uses split/full — see docs §4).
+// The contract's `type` field name for a tunnel mode (the #= var uses
+// split/full — see docs §4).
 std::string_view type_name(bool full_tunnel) { return full_tunnel ? "proxy" : "isolated"; }
 
 } // namespace

@@ -1,20 +1,20 @@
-# Peer provisioning — domain model & the baki CLI contract
+# Peer provisioning — domain model & the machine-caller CLI contract
 
-**Status:** proposal, not yet implemented. This is the design that turns
-wirebard's four stub commands into a real tool, driven by the first concrete
-consumer: baki, which calls wirebard over SSH to add/remove WireGuard peers.
+**Status:** this is the design of record for the implemented feature. It turned
+wirebard's four stub commands into a real tool, driven by its first concrete
+consumer: a machine caller that invokes wirebard over SSH to add/remove
+WireGuard peers.
 
-It settles the questions CLAUDE.md left open — the source format, how
-fragments compose into `/etc/wireguard/wgN.conf`, and what each command
-really does — by designing them against baki's contract sketch. Read the
-contract sketch (in the conversation that spawned this) alongside this doc;
-section 7 maps wirebard's output onto it field by field.
+It settles the questions the project left open — the source format, how
+fragments compose into `/etc/wireguard/<network>.conf`, and what each command
+really does — by designing them against that caller's needs. Section 7 gives the
+JSON contract field by field.
 
 ---
 
 ## 0. The one decision that shapes everything
 
-baki wants an **imperative, mutating** API: `wirebard peer add … --json`
+The caller wants an **imperative, mutating** API: `wirebard peer add … --json`
 that assigns an address, applies it live, persists it, and returns the
 result. wirebard's philosophy is a **declarative compiler**: fragments in a
 source tree that `build`/`check`/`apply` render into the live config, with
@@ -31,21 +31,20 @@ peer add  →  author (or find) a peer fragment in the source tree   [the mutati
 
 The fragment on disk stays the single source of truth. `peer add` is the
 only thing that *writes* a fragment programmatically; everything downstream
-is the same deterministic compile any hand-edit would trigger. This is why
-baki's Option C (drop a fragment over SSH) was rightly rejected as the
-*interface* while remaining wirebard's *internal model*: baki gets a clean
-imperative call, wirebard stays a compiler underneath.
+is the same deterministic compile any hand-edit would trigger. This is why a
+"drop a fragment over SSH" interface was rejected as the *interface* while
+remaining wirebard's *internal model*: the caller gets a clean imperative call,
+wirebard stays a compiler underneath.
 
 Everything below follows from holding that line.
 
 ---
 
-## 1. Filesystem layout — haladin's partials model, ported
+## 1. Filesystem layout — the partials model
 
-This reuses haladin's `wishes/` structure almost verbatim. The one adaptation
-is that WireGuard is **one file per interface**, so where haladin has a single
-flat `wishes/` → one `haproxy.cfg`, wirebard has **one partials subfolder per
-network** → one `<network>.conf` each. See `samples/` for working examples.
+The project directory is a set of *partials*. WireGuard is **one file per
+interface**, so each network is a partials subfolder that compiles to its own
+`<network>.conf`. See `samples/` for working examples.
 
 ```
 <project>/                         ↔  /etc/wireguard/  (the DEFAULT root)
@@ -57,7 +56,7 @@ network** → one `<network>.conf` each. See `samples/` for working examples.
     │   ├── template.conf             copy-me reference; NOT compiled
     │   ├── 00-main.conf              [Interface] + all #= variables (§2)
     │   ├── 10-alice.conf             one [Peer] per file, merged in NN- order (§3)
-    │   └── 20-baki-web01.conf
+    │   └── 20-web01.conf
     └── roam/
         ├── 00-main.conf              tunnel = full (§4)
         └── 10-laptop.conf
@@ -70,21 +69,18 @@ network** → one `<network>.conf` each. See `samples/` for working examples.
   `server.key` are hand-owned — "generate no artifact a human could write."
 
 **Project-path resolution (settled):** default to the WireGuard config folder,
-override for odd locations — exactly what you asked for. Explicit `-C <dir>`
-wins; else the current directory if it contains `partials/` (dev workflow);
-else `/etc/wireguard`. Ported from haladin's `resolve_project_root`, swapping
-`/etc/haproxy` → `/etc/wireguard` and `wishes/` → `partials/`.
+override for odd locations. Explicit `-C <dir>` wins; else the current directory
+if it contains `partials/` (dev workflow); else `/etc/wireguard`.
 
 ---
 
 ## 2. `00-main.conf` — the interface stanza + variables (hand-written)
 
-Sorts first in its folder, so — exactly like haladin's `00-defaults.wish.conf`
-— it owns the `[Interface]` stanza *and* is the single place every `#=`
-variable is declared. The **`vars` module is reused nearly verbatim from
-haladin**: `#= name = value`, `${name}` substitution, `$${name}` escape,
-`#= prod: name = value` env overrides via `--env`. It's domain-agnostic text
-machinery — no HAProxy/WireGuard knowledge in it.
+Sorts first in its folder, so it owns the `[Interface]` stanza *and* is the
+single place every `#=` variable is declared. The **`vars` module is
+domain-agnostic text machinery** — no HAProxy/WireGuard knowledge in it:
+`#= name = value`, `${name}` substitution, `$${name}` escape, `#= prod: name =
+value` env overrides via `--env`.
 
 ```ini
 # partials/backups/00-main.conf
@@ -124,8 +120,8 @@ compiled `[Peer]` block needs), and its label rides in a leading comment
 WireGuard ignores but wirebard reads:
 
 ```ini
-# partials/backups/20-baki-web01.conf
-# wirebard: name=baki-web01          # metadata comment; WireGuard ignores it
+# partials/backups/20-web01.conf
+# wirebard: name=web01               # metadata comment; WireGuard ignores it
 [Peer]
 PublicKey  = <base64>                # the identity & idempotency key
 AllowedIPs = 10.8.2.3/32             # THE assignment: the /32 the server routes here
@@ -134,8 +130,8 @@ AllowedIPs = 10.8.2.3/32             # THE assignment: the /32 the server routes
 - **Filename** = `<NN>-<sanitized-name>.conf`, `NN` = next free 10-step order
   prefix. Human-readable and merge-ordered. The filename is *not*
   authoritative — idempotency and lookups key on the `PublicKey` inside.
-- The `[Peer]` block renders **verbatim** into the server conf (same as a
-  haladin wish). This is why the partial IS the server-side record.
+- The `[Peer]` block renders **verbatim** into the server conf. This is why the
+  partial IS the server-side record.
 
 ### Allocation is a pure, deterministic function
 
@@ -156,7 +152,7 @@ no randomness, no clock (both are banned in the core anyway).
 
 ### The determinism caveat, stated plainly
 
-CLAUDE.md's rule is "byte-identical output for identical inputs." Allocation
+The project's rule is "byte-identical output for identical inputs." Allocation
 extends the definition of *input* to **include the fragment set (the
 ledger)**: the address a peer gets depends on membership *history*, not just
 the new pubkey (adding A then B ≠ B then A). That's inherent to stateful
@@ -165,11 +161,10 @@ backed up. The compile step *given a fixed fragment set* remains
 byte-identical. This caveat is the single most important thing a reviewer
 should understand about the model.
 
-**Open choice B — address reuse on removal:** when a peer is removed its /32
-returns to the pool and may be handed to the next new peer. Simple and
-matches "lowest free." The alternative is tombstoning (never reuse) to avoid
-a recycled IP surprising downstream ACLs. I propose **reuse**; flag if your
-environment pins policy to addresses.
+**Address reuse on removal (settled):** when a peer is removed its /32 returns
+to the pool and may be handed to the next new peer. Simple and matches "lowest
+free." The alternative is tombstoning (never reuse) to avoid a recycled IP
+surprising downstream ACLs — reuse was chosen.
 
 ---
 
@@ -184,15 +179,15 @@ config wirebard renders, driven by the `#= tunnel` var in `00-main.conf`:
 | **split** | `isolated` | `10.8.2.5/24` | `10.8.2.0/24` | reach only this network's subnet |
 | **full** | `proxy` | `10.8.2.5/24` | `0.0.0.0/0, ::/0` | route *all* traffic through the VPN |
 
-(The `#=` var uses WireGuard-native words *split/full*; baki's JSON keeps its
-`type: isolated|proxy` field, which maps 1:1 — see §7.)
+(The `#=` var uses WireGuard-native words *split/full*; the JSON contract keeps
+its `type: isolated|proxy` field, which maps 1:1 — see §7.)
 
-This is the crux of baki's Option B: **only wirebard knows the policy**, so
-wirebard must render the client config or the policy leaks into baki. The
-footgun to get right — the client's `Address` carries the **/24** subnet
-prefix (so the client installs a subnet route), while the server's
-`AllowedIPs` for that peer is a **/32**. Both derive from the same assigned
-host; don't conflate the prefixes.
+This is the crux of Option B: **only wirebard knows the policy**, so wirebard
+must render the client config or the policy leaks into the caller. The footgun
+to get right — the client's `Address` carries the **/24** subnet prefix (so the
+client installs a subnet route), while the server's `AllowedIPs` for that peer
+is a **/32**. Both derive from the same assigned host; don't conflate the
+prefixes.
 
 ---
 
@@ -222,9 +217,8 @@ host; don't conflate the prefixes.
 ```
 
 `wg syncconf` (not `wg-quick down/up`) is deliberate: it reconciles the live
-interface to the new conf, so adding peer N never interrupts peers 1..N-1.
-**Open choice C** — confirm `syncconf` is acceptable (it requires the conf on
-disk and drops runtime-only state, which we have none of).
+interface to the new conf, so adding peer N never interrupts peers 1..N-1. It
+requires the conf on disk and drops runtime-only state, of which we have none.
 
 ### `peer remove --network N --pubkey K --json`
 
@@ -241,10 +235,10 @@ interface.
 
 ---
 
-## 6. Concurrency — a new `FileLock` primitive
+## 6. Concurrency — a `FileLock` primitive
 
-baki requires safety under concurrent invocation. We have atomic writes but
-no *inter-process* lock. Add one to `fs`, RAII like `TempDir`:
+The contract requires safety under concurrent invocation. We have atomic writes
+but no *inter-process* lock, so one lives in `fs`, RAII like `TempDir`:
 
 ```cpp
 // flock(LOCK_EX) on partials/<N>/.lock, released in the destructor.
@@ -267,7 +261,7 @@ control chars, newlines — `client_config` is multi-line). Exactly the kind of
 pure string logic wirebard unit-tests to death. **stdout carries exactly one
 JSON object; every log line goes to stderr** (contract point 1).
 
-`peer add` envelope, matching baki's sketch verbatim:
+`peer add` envelope:
 
 ```json
 {
@@ -283,21 +277,18 @@ JSON object; every log line goes to stderr** (contract point 1).
 Every field is derivable: `endpoint/DNS/MTU/server_public_key` from
 `00-main.conf` vars, `type` from the `tunnel` var (split→isolated, full→proxy),
 `address` from allocation, `client_config` from §4's policy table. All four
-contract guarantees hold: idempotent (§3), lone-JSON-on-
-stdout, private key never received, applied+persisted-before-exit-0 (§5.6),
-lock-safe (§6).
+contract guarantees hold: idempotent (§3), lone-JSON-on-stdout, private key
+never received, applied+persisted-before-exit-0 (§5.6), lock-safe (§6).
 
-**Open choice D — errors as JSON.** baki's sketch specifies only the *success*
-envelope and keys failures on exit code. I propose that under `--json`,
-failures also emit a single object to stdout —
-`{"error": {"code": "subnet_full", "message": "…"}}` — with the non-zero exit
-still authoritative. Strictly additive; makes baki's error handling precise.
-Confirm and I'll fold it into the contract reply.
+**Errors as JSON (open):** the success envelope is defined above; failures key
+on exit code. A future addition, under `--json`, could also emit a single
+object to stdout — `{"error": {"code": "subnet_full", "message": "…"}}` — with
+the non-zero exit still authoritative. Strictly additive.
 
-Exit codes (unchanged from `commands.h`): 0 ok · 1 config/validation (bad
-subnet, subnet full, dup) · 2 usage (missing `--network`/`--pubkey`, or a
-`--pubkey` that isn't a base64 WireGuard key — 44 chars) · 3 environment (no
-project, `wg`/`systemctl` absent, apply failed).
+Exit codes (from `commands.h`): 0 ok · 1 config/validation (bad subnet, subnet
+full, dup) · 2 usage (missing `--network`/`--pubkey`, or a `--pubkey` that isn't
+a base64 WireGuard key — 44 chars) · 3 environment (no project, `wg`/`systemctl`
+absent, apply failed).
 
 `peer add`/`peer remove` reject an empty or non-base64 `--pubkey` up front
 (exit 2), before any allocation or filesystem work — the contract does not
@@ -307,7 +298,7 @@ trust callers to send a well-formed key.
 
 ## 8. Secrets — the rules for this feature
 
-- **Peer private key:** never received. baki sends only the pubkey. ✓
+- **Peer private key:** never received. The caller sends only the pubkey. ✓
 - **Server private key:** lives in `server.key` (0600, gitignored). It is
   read only when composing the interface stanza of the compiled conf (itself
   installed 0600). It must never appear on an argv (`wg`/`wg-quick` take it
@@ -317,21 +308,20 @@ trust callers to send a well-formed key.
 - **`client_config`** contains only `{{PRIVATE_KEY}}` and public material
   (`server_public_key` is public by definition).
 
-**Open choice E:** confirm the `server.key`-as-0600-file model vs. an
-alternative (e.g. a keyring/agent). The file model is simplest and matches
-"mirror the system."
+The `server.key`-as-0600-file model is used (vs. a keyring/agent): simplest, and
+it matches "mirror the system."
 
 ---
 
 ## 9. Philosophy checkpoint
 
-`client_config` means wirebard now renders a **client-side** wg-quick config —
-a second artifact beyond the server `wgN.conf` it compiles. I read this as
+`client_config` means wirebard renders a **client-side** wg-quick config — a
+second artifact beyond the server `<network>.conf` it compiles. This is
 still-one-job: it's a **computed response payload**, never persisted to the
 source tree, and only wirebard holds the AllowedIPs policy that makes it
 correct. So it doesn't violate "generate no artifact a human could write"
-(that rule is about *checked-in* artifacts). Veto here if you disagree —
-it's the one place the feature widens wirebard's remit.
+(that rule is about *checked-in* artifacts) — it's the one place the feature
+widens wirebard's remit.
 
 ---
 
@@ -343,9 +333,9 @@ implemented and tested** (`ctest --preset debug`); the only unverified surface
 is the live `wg`/`systemctl` execution in `execute_apply`, which needs a real
 WireGuard host — `--dry-run` shows exactly what it runs.
 
-- **M1** — port `vars` (the `#=`/`${}`/env engine, ~verbatim from haladin) +
-  `project`/`resolve_project_root` (default `/etc/wireguard`) + partial loading
-  (`00-main.conf` + `NN-*.conf`, NN-sorted). Pure, unit-tested.
+- **M1** — `vars` (the `#=`/`${}`/env engine) + `project`/`resolve_project_root`
+  (default `/etc/wireguard`) + partial loading (`00-main.conf` + `NN-*.conf`,
+  NN-sorted). Pure, unit-tested.
 - **M2** — `alloc`: deterministic lowest-free /32, idempotent-by-pubkey,
   exhaustion error (pure; the most heavily-tested module).
 - **M3** — `compile`: merge partials → server `N.conf` (inject PrivateKey from
@@ -361,17 +351,15 @@ WireGuard host — `--dry-run` shows exactly what it runs.
 
 ## 11. Decisions
 
-- **A — SETTLED (you):** default root is the WireGuard config folder
-  (`/etc/wireguard`), `-C <dir>` overrides for odd locations; cwd-with-
-  `partials/` for dev. Ported from haladin's `resolve_project_root`.
+Settled during design and implementation:
 
-Still open (my recommendation is the first option in each):
-
+- **A** — default root is the WireGuard config folder (`/etc/wireguard`),
+  `-C <dir>` overrides for odd locations; cwd-with-`partials/` for dev.
 - **B** — address **reuse** on removal (vs. tombstone).
 - **C** — live reload via `wg syncconf` (vs. `wg-quick` strip/up).
-- **D** — emit a JSON **error** object under `--json` on failure (additive to baki's sketch).
+- **D** — JSON **error** objects under `--json` on failure remain an optional
+  future addition; failures currently key on exit code.
 - **E** — server private key as a 0600 gitignored `server.key` file.
 
-Sign off (or override) B–E and M1 is ready to start. Nothing here requires a
-new third-party dependency — `vars`/`render`/`project` port from haladin.
-```
+Nothing here required a new third-party dependency — `vars`/`render`/`project`
+are pure, dependency-free modules.

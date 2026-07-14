@@ -1,6 +1,7 @@
 // commands/peer.cpp — `wirebard peer add|remove`: the imperative, JSON-speaking
-// interface baki drives over SSH (docs §5). Each is sugar over the declarative
-// spine: author (or delete) a peer partial, then build → check → apply. The
+// interface a machine caller drives over SSH (docs §5). Each is sugar over the
+// declarative spine: author (or delete) a peer partial, then build → check →
+// apply. The
 // per-network lock makes concurrent callers safe; a failed apply rolls the
 // partial back so the source never diverges from the live interface.
 #include <filesystem>

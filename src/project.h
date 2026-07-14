@@ -1,7 +1,6 @@
 // project.h — locating a wirebard project and loading one network from it.
 // Commands stay thin; the pipeline (find files → load vars → substitute
-// partials) lives here, in one place. Ported from haladin's project facade,
-// generalized from "one config" to "one interface per network".
+// partials) lives here, in one place — one interface per network.
 //
 // A project directory mirrors /etc/wireguard on a real server — back up (or
 // rsync) the directory, run `wirebard build` on the other side, and the

@@ -1,5 +1,5 @@
 // json.h — a tiny, dependency-free JSON writer. wirebard emits JSON for
-// machine callers (baki over SSH); we hand-roll it rather than pull a library,
+// machine callers over SSH; we hand-roll it rather than pull a library,
 // because the surface is small and correct string escaping is the only hard
 // part — exactly the kind of pure logic worth owning and unit-testing.
 //

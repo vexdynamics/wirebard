@@ -94,7 +94,7 @@ Commands:
   apply   [network]     Build, then install + reload the interface (live)
   list                  Show networks and their peers
   network list          Machine-readable network list (with --json)
-  peer add              Add a peer to a network (the baki contract)
+  peer add              Add a peer to a network (the JSON contract)
   peer remove           Remove a peer from a network
 
 With no [network], check/build/apply act on every network under partials/.

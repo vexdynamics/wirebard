@@ -1,5 +1,5 @@
 // commands/network.cpp — `wirebard network list [--json]`: the machine-readable
-// network inventory from the baki contract (docs §7).
+// network inventory from the JSON contract (docs §7).
 #include <print>
 #include <string>
 #include <vector>

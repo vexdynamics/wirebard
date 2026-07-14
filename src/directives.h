@@ -10,8 +10,7 @@
 // The sigil must be followed by whitespace: "#=====" divider art is a plain
 // comment, "#= x = 1" is a directive. This one rule is why no separate values
 // file is needed — 00-main.conf carries the values, and backing up
-// partials/ backs up everything. (Ported from haladin, where the same trick
-// hides in HAProxy comments.)
+// partials/ backs up everything.
 //
 // This module only FINDS directive lines; vars.cpp owns the grammar.
 #pragma once
