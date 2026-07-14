@@ -127,6 +127,8 @@ int peer_add(const ParsedArgs& args) {
     auto pubkey = cmd::flag(args, "--pubkey");
     if (!network || !pubkey)
         return usage("peer add: --network and --pubkey are required");
+    if (!is_wireguard_key(*pubkey))
+        return usage("peer add: --pubkey must be a base64 WireGuard public key (44 chars)");
     const bool json = args.switches.contains("--json");
     const bool dry = args.switches.contains("--dry-run");
     const std::string label = std::string(cmd::flag(args, "--name").value_or("peer"));
@@ -228,6 +230,8 @@ int peer_remove(const ParsedArgs& args) {
     auto pubkey = cmd::flag(args, "--pubkey");
     if (!network || !pubkey)
         return usage("peer remove: --network and --pubkey are required");
+    if (!is_wireguard_key(*pubkey))
+        return usage("peer remove: --pubkey must be a base64 WireGuard public key (44 chars)");
     const bool json = args.switches.contains("--json");
     const bool dry = args.switches.contains("--dry-run");
 

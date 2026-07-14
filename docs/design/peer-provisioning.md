@@ -295,8 +295,13 @@ still authoritative. Strictly additive; makes baki's error handling precise.
 Confirm and I'll fold it into the contract reply.
 
 Exit codes (unchanged from `commands.h`): 0 ok · 1 config/validation (bad
-subnet, subnet full, dup) · 2 usage (missing `--network`/`--pubkey`) · 3
-environment (no project, `wg`/`systemctl` absent, apply failed).
+subnet, subnet full, dup) · 2 usage (missing `--network`/`--pubkey`, or a
+`--pubkey` that isn't a base64 WireGuard key — 44 chars) · 3 environment (no
+project, `wg`/`systemctl` absent, apply failed).
+
+`peer add`/`peer remove` reject an empty or non-base64 `--pubkey` up front
+(exit 2), before any allocation or filesystem work — the contract does not
+trust callers to send a well-formed key.
 
 ---
 

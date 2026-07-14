@@ -150,6 +150,20 @@ Result<std::vector<Assignment>> collect_assignments(std::span<const Partial> par
     return out;
 }
 
+bool is_wireguard_key(std::string_view s) {
+    // 32 bytes base64-encoded == 44 chars, exactly one '=' of padding at the end.
+    if (s.size() != 44 || s.back() != '=')
+        return false;
+    for (size_t i = 0; i + 1 < s.size(); ++i) {
+        const char c = s[i];
+        const bool base64 = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+                            (c >= '0' && c <= '9') || c == '+' || c == '/';
+        if (!base64)
+            return false;
+    }
+    return true;
+}
+
 std::string render_peer_partial(std::string_view name, std::string_view public_key,
                                 uint32_t address) {
     return std::format("# wirebard: name={}\n[Peer]\nPublicKey = {}\nAllowedIPs = {}/32\n", name,

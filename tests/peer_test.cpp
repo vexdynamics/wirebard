@@ -96,6 +96,19 @@ TEST(PeerTest, RenderPeerPartialRoundTripsThroughCollect) {
     EXPECT_EQ(wirebard::format_ipv4((*got)[0].address), "10.8.2.7");
 }
 
+TEST(PeerTest, WireguardKeyValidation) {
+    // A real 44-char base64 curve25519 public key.
+    EXPECT_TRUE(wirebard::is_wireguard_key("xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg="));
+    // Rejections: empty, too short, missing pad, wrong length, illegal char.
+    EXPECT_FALSE(wirebard::is_wireguard_key(""));
+    EXPECT_FALSE(wirebard::is_wireguard_key("AAA"));
+    EXPECT_FALSE(
+        wirebard::is_wireguard_key("xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg")); // no '='
+    EXPECT_FALSE(
+        wirebard::is_wireguard_key("xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8D==")); // 2 pads
+    EXPECT_FALSE(wirebard::is_wireguard_key("xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8D!=")); // '!'
+}
+
 TEST(PeerTest, NextPeerFilenameStepsPastHighestAndSanitizes) {
     namespace fs = std::filesystem;
     std::vector<fs::path> existing = {"00-main.conf", "10-alice.conf", "20-bob.conf"};

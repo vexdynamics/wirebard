@@ -36,6 +36,12 @@ struct Assignment {
 // [Interface] and any section that is neither contributes nothing.
 Result<std::vector<Assignment>> collect_assignments(std::span<const Partial> partials);
 
+// True if `s` is shaped like a WireGuard key: base64 of 32 bytes, i.e. exactly
+// 44 characters from the base64 alphabet ending in a single '='. Cheap
+// structural check — it rejects empty/garbage input at the door (the contract
+// must not trust callers); wg itself is the final arbiter of a real key.
+bool is_wireguard_key(std::string_view s);
+
 // --- authoring (what `peer add` writes) -----------------------------------
 
 // The text of a new peer partial: the "# wirebard: name=" metadata comment plus
