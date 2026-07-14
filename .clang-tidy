@@ -1,0 +1,27 @@
+---
+# Disabled checks, with reasons:
+#   bugprone-exception-escape        exceptions escaping main just terminate; fine
+#   bugprone-easily-swappable-params flags every (string_view, string_view) pair
+#   modernize-use-trailing-return    style preference, we use classic returns
+#   performance-enum-size            uint8_t enums save nothing measurable here
+#   readability-braces-around-*      clang-format owns wrapping/brace style
+#   readability-function-cognitive-* commands are deliberately linear scripts;
+#                                    splitting them hurts top-to-bottom reading
+#   readability-identifier-length    'it', 'rc', 'fd' are idiomatic
+#   readability-magic-numbers        ports/exit codes in context read fine
+Checks: >
+  bugprone-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  -bugprone-exception-escape,
+  -bugprone-easily-swappable-parameters,
+  -modernize-use-trailing-return-type,
+  -performance-enum-size,
+  -readability-braces-around-statements,
+  -readability-function-cognitive-complexity,
+  -readability-identifier-length,
+  -readability-magic-numbers
+WarningsAsErrors: ''
+HeaderFilterRegex: 'src/.*'
+FormatStyle: file

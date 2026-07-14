@@ -1,0 +1,12 @@
+# Dev conveniences around the Dockerfile — hand-written, not generated.
+#
+#   docker compose run --rm ci        # clean-room build + full ctest suite
+#   docker compose run --rm wirebard --help
+services:
+  ci:
+    build:
+      context: .
+      target: build
+    entrypoint: ["ctest", "--preset", "release"]
+  wirebard:
+    build: .
