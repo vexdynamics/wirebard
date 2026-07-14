@@ -83,16 +83,19 @@ std::string_view usage_text() {
     // is okay: the viewed data outlives every possible caller).
     return R"(wirebard — WireGuard config manager & compiler
 
-Usage: wirebard [-C DIR] <command> [options]
+Usage: wirebard [-C DIR] <command> [network] [options]
 
-Commands (all stubs — the scaffold compiles, the tool is unwritten):
-  build    Compile the sources into a wireguard config
-  check    Validate without touching anything
-  apply    Install the config and restart the interface
-  list     Show what's defined where
+Commands:
+  check    Validate a network's sources without touching anything
+  build    Compile the sources into a wireguard config          (stub)
+  apply    Install the config and restart the interface          (stub)
+  list     Show what's defined where                             (stub)
+
+With no [network], check runs over every network under partials/.
 
 Global:
-  -C, --dir DIR   project directory
+  -C, --dir DIR   project directory (default: current dir, else /etc/wireguard)
+  --env NAME      select a '#= NAME: ...' variable overlay
   -h, --help      this text
   --verbose       echo external commands as they run
 

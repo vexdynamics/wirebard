@@ -15,8 +15,8 @@ int not_implemented(std::string_view name) {
 
 } // namespace
 
+// cmd_check has graduated into commands/check.cpp (M3).
 int cmd_build(const ParsedArgs&) { return not_implemented("build"); }
-int cmd_check(const ParsedArgs&) { return not_implemented("check"); }
 int cmd_apply(const ParsedArgs&) { return not_implemented("apply"); }
 int cmd_list(const ParsedArgs&) { return not_implemented("list"); }
 
