@@ -16,16 +16,16 @@ teaching comments aimed at someone coming from Node.js/Go.
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kristiand00/wirebard/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/vexdynamics/wirebard/main/install.sh | sh
 ```
 
 Detects the architecture (x86_64 / aarch64 / armhf / armel), downloads the
 latest release, verifies it against `SHA256SUMS`, and installs a single static
-binary to `/usr/local/bin` (override with `WIREBARD_BIN_DIR=...`). While the
-repo is private the plumbing needs auth — use `gh` instead:
+binary to `/usr/local/bin` (override with `WIREBARD_BIN_DIR=...`). Or grab a
+tarball straight from the release with `gh`:
 
 ```bash
-gh release download -R kristiand00/wirebard -p "*linux-$(uname -m)*" && tar -xzf wirebard-*.tar.gz
+gh release download -R vexdynamics/wirebard -p "*linux-$(uname -m)*" && tar -xzf wirebard-*.tar.gz
 ```
 
 ## Requirements

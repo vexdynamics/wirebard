@@ -2,13 +2,13 @@
 # wirebard installer — downloads the latest release for this machine's
 # architecture, verifies its checksum, installs to /usr/local/bin.
 #
-#   curl -fsSL https://raw.githubusercontent.com/kristiand00/wirebard/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/vexdynamics/wirebard/main/install.sh | sh
 #
 # Hand-written infrastructure, like everything else around wirebard. POSIX sh,
 # no dependencies beyond curl + tar + sha256sum.
 set -eu
 
-REPO="kristiand00/wirebard"
+REPO="vexdynamics/wirebard"
 BIN_DIR="${WIREBARD_BIN_DIR:-/usr/local/bin}"
 
 case "$(uname -s)" in
