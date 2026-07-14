@@ -31,3 +31,8 @@ target_include_directories(wirebard_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(wirebard main.cpp)
 target_link_libraries(wirebard PRIVATE wirebard_lib)
+
+# Baked into `wirebard --version`. Local builds say "dev"; the release
+# workflow passes the git tag: cmake --preset release-static -DWIREBARD_VERSION=v1.0.0
+set(WIREBARD_VERSION "dev" CACHE STRING "version string for --version")
+target_compile_definitions(wirebard PRIVATE WIREBARD_VERSION="${WIREBARD_VERSION}")

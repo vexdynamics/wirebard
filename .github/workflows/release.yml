@@ -1,0 +1,104 @@
+# Release: push a tag like v1.0.0 and this builds FULLY STATIC binaries for
+# x86_64, aarch64, and 32-bit armhf/armel (servers, Raspberry Pi old and new —
+# no glibc/libstdc++ version to match anywhere), runs the whole test suite
+# against each exact build (the ARM ones under qemu), and publishes a GitHub
+# Release with tarballs and checksums. Reproduce the x86_64 artifact locally:
+#   cmake --preset release-static -DWIREBARD_VERSION=vX.Y.Z
+#   cmake --build --preset release-static
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # gh release create needs to write to the repo
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-14 g++-14 gcc-14-aarch64-linux-gnu g++-14-aarch64-linux-gnu \
+            gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf \
+            gcc-14-arm-linux-gnueabi g++-14-arm-linux-gnueabi \
+            binutils-aarch64-linux-gnu binutils-arm-linux-gnueabihf \
+            binutils-arm-linux-gnueabi qemu-user-static ninja-build
+
+      - name: build + test x86_64
+        env:
+          CC: gcc-14
+          CXX: g++-14
+        run: |
+          cmake --preset release-static -DWIREBARD_VERSION=${{ github.ref_name }}
+          cmake --build --preset release-static
+          ctest --preset release-static
+
+      # Cross-compiled; the test suite runs through qemu (ctest picks the
+      # emulator up from CMAKE_CROSSCOMPILING_EMULATOR automatically).
+      - name: build + test aarch64
+        run: |
+          cmake -B build/release-static-aarch64 -G Ninja \
+            -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc-14 \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++-14 \
+            -DCMAKE_CROSSCOMPILING_EMULATOR=/usr/bin/qemu-aarch64-static \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS=-static \
+            -DWIREBARD_VERSION=${{ github.ref_name }}
+          cmake --build build/release-static-aarch64
+          ctest --test-dir build/release-static-aarch64 --output-on-failure
+
+      - name: build + test armhf (32-bit, newer Raspberry Pis)
+        run: |
+          cmake -B build/release-static-armhf -G Ninja \
+            -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm \
+            -DCMAKE_C_COMPILER=arm-linux-gnueabihf-gcc-14 \
+            -DCMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++-14 \
+            -DCMAKE_CROSSCOMPILING_EMULATOR=/usr/bin/qemu-arm-static \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS=-static \
+            -DWIREBARD_VERSION=${{ github.ref_name }}
+          cmake --build build/release-static-armhf
+          ctest --test-dir build/release-static-armhf --output-on-failure
+
+      # Soft-float armv5t: a static soft-float binary runs on ANY 32-bit ARM
+      # kernel — this is the Pi 1 / Pi Zero artifact (wirebard does no
+      # floating-point math — only integer IP arithmetic — so soft-float costs
+      # nothing). QEMU_CPU=arm1176 runs the suite on the Pi 1's exact core: an
+      # armv7 instruction sneaking in would fail the release right here.
+      - name: build + test armel (armv6 and older, Pi 1/Zero)
+        env:
+          QEMU_CPU: arm1176
+        run: |
+          cmake -B build/release-static-armel -G Ninja \
+            -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm \
+            -DCMAKE_C_COMPILER=arm-linux-gnueabi-gcc-14 \
+            -DCMAKE_CXX_COMPILER=arm-linux-gnueabi-g++-14 \
+            -DCMAKE_CROSSCOMPILING_EMULATOR=/usr/bin/qemu-arm-static \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS=-static \
+            -DWIREBARD_VERSION=${{ github.ref_name }}
+          cmake --build build/release-static-armel
+          ctest --test-dir build/release-static-armel --output-on-failure
+
+      - name: package
+        run: |
+          strip build/release-static/src/wirebard
+          aarch64-linux-gnu-strip build/release-static-aarch64/src/wirebard
+          arm-linux-gnueabihf-strip build/release-static-armhf/src/wirebard
+          arm-linux-gnueabi-strip build/release-static-armel/src/wirebard
+          build/release-static/src/wirebard --version
+          tar -C build/release-static/src -czf wirebard-${{ github.ref_name }}-linux-x86_64.tar.gz wirebard
+          tar -C build/release-static-aarch64/src -czf wirebard-${{ github.ref_name }}-linux-aarch64.tar.gz wirebard
+          tar -C build/release-static-armhf/src -czf wirebard-${{ github.ref_name }}-linux-armhf.tar.gz wirebard
+          tar -C build/release-static-armel/src -czf wirebard-${{ github.ref_name }}-linux-armel.tar.gz wirebard
+          sha256sum wirebard-*.tar.gz > SHA256SUMS
+      - name: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            wirebard-*.tar.gz SHA256SUMS \
+            --title "${{ github.ref_name }}" --generate-notes

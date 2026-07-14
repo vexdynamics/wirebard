@@ -1,0 +1,31 @@
+# CI: every push and PR gets (1) the full suite under ASan+UBSan and
+# (2) the clean-room docker build — the same two ways the repo is built by
+# hand. No third-party actions beyond checkout; the recipes ARE the repo's
+# own presets and Dockerfile, so CI can't drift from local reality.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  sanitizers:
+    runs-on: ubuntu-24.04
+    env:
+      CC: gcc-14
+      CXX: g++-14
+    steps:
+      - uses: actions/checkout@v5
+      - name: toolchain
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gcc-14 g++-14 ninja-build
+      - run: cmake --preset debug
+      - run: cmake --build --preset debug
+      - run: ctest --preset debug
+
+  clean-room:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      # The Dockerfile compiles AND runs ctest as part of the build.
+      - run: docker build .

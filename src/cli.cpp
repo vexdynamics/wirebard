@@ -12,7 +12,7 @@ namespace {
 // baked into the binary at compile time, zero runtime setup cost.
 // (-C/--dir is handled by its own branch below, before this list is consulted)
 constexpr std::array kValueFlags = {"--env", "--out", "--network", "--pubkey", "--name"};
-constexpr std::array kSwitchFlags = {"--verbose", "--help", "--json", "--dry-run"};
+constexpr std::array kSwitchFlags = {"--verbose", "--help", "--json", "--dry-run", "--version"};
 constexpr std::array kCommands = {"build", "check", "apply", "list", "peer", "network"};
 
 // std::ranges::contains (C++23): like array.includes() / slices.Contains.
@@ -70,7 +70,10 @@ Result<ParsedArgs> parse_args(std::span<const char* const> argv) {
         }
     }
 
-    if (args.command.empty() && !args.switches.contains("--help")) {
+    // --help/--version are answered by main() before any dispatch, so they
+    // must not trip the "no command" error.
+    if (args.command.empty() && !args.switches.contains("--help") &&
+        !args.switches.contains("--version")) {
         return std::unexpected(usage_error("no command given (see --help)"));
     }
     return args;
@@ -105,6 +108,7 @@ Global:
   --json          machine-readable output (peer/network commands)
   --dry-run       show what would happen; touch nothing (apply/peer)
   -h, --help      this text
+  --version       print the version and exit
   --verbose       echo external commands as they run
 
 Exit codes: 0 ok · 1 config/validation failure · 2 usage · 3 environment

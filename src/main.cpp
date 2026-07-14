@@ -24,6 +24,13 @@ int main(int argc, char** argv) {
         std::print("{}", wirebard::usage_text());
         return wirebard::kExitOk;
     }
+    if (args->switches.contains("--version")) {
+        // WIREBARD_VERSION comes from CMake ("dev" locally, the git tag in
+        // release builds). Adjacent string literals concatenate at compile
+        // time — the cleanest way to splice a macro into a printed line.
+        std::println("wirebard " WIREBARD_VERSION);
+        return wirebard::kExitOk;
+    }
 
     wirebard::set_verbose(args->switches.contains("--verbose"));
 

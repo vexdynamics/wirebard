@@ -34,6 +34,24 @@ binary. No toolchain on the host? `docker build -t wirebard .` compiles and
 runs the suite in a clean room (`docker compose run --rm ci` for just the
 tests).
 
+## Releases
+
+Pushing a `vX.Y.Z` tag triggers `.github/workflows/release.yml`: it builds
+**fully static** binaries for x86_64, aarch64, armhf, and armel (servers and
+Raspberry Pis old and new — no glibc to match), runs the whole test suite
+against each (ARM under qemu), and publishes a GitHub Release with tarballs and
+`SHA256SUMS`. Reproduce the x86_64 artifact locally:
+
+```bash
+cmake --preset release-static -DWIREBARD_VERSION=vX.Y.Z
+cmake --build --preset release-static
+./build/release-static/src/wirebard --version   # -> wirebard vX.Y.Z
+```
+
+Every push/PR runs `.github/workflows/ci.yml`: the suite under ASan+UBSan plus
+the clean-room `docker build`. `wirebard --version` prints `dev` for untagged
+local builds.
+
 ## Development notes
 
 - Debug preset compiles with AddressSanitizer + UBSan — keep it on.
