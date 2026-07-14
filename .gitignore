@@ -1,3 +1,6 @@
 build/
 .cache/
 compile_commands.json
+
+# WireGuard server private keys — never commit
+**/server.key

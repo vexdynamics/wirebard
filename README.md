@@ -5,10 +5,13 @@ WireGuard config manager & compiler — the sibling of
 philosophy: do exactly one job, own no orchestration, generate no artifact
 a human could write.
 
-**Status: fresh scaffold.** The foundation (error model, atomic file I/O,
-subprocess runner, CLI parser, tooling) is proven code inherited from
-haladin; every command is a stub until the WireGuard domain model is
-designed.
+**Status: M1–M6 landed.** The domain model (partials + variables, address
+allocation, compile/check, client-config + JSON contract, apply, and the
+`peer`/`network` commands baki drives over SSH) is implemented and tested. The
+one unverified surface is the live `wg`/`systemctl` execution in `apply`, which
+needs a real WireGuard host — `--dry-run` shows exactly what it would run. See
+`docs/design/peer-provisioning.md` for the design and the baki CLI contract,
+and `samples/` for the partial layout.
 
 Also: a C++23 learning project. The source carries `C++ LESSON:` teaching
 comments aimed at someone coming from Node.js/Go.

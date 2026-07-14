@@ -103,9 +103,15 @@ ListenPort = ${listen_port}
 # server.key at build time (§8). Full-tunnel NAT PostUp lives here, hand-written.
 ```
 
-The server's **public** key is derived from `server.key` at build (`wg pubkey`)
-for the client render — no need to duplicate it in the partial. The **private**
-key never leaves `server.key`/the 0600 compiled conf. See §8.
+The server's **public** key rides in a `#= server_public_key` var (it's public,
+so a partial is a fine home) and is emitted into every client render. The
+**private** key never leaves `server.key`/the 0600 compiled conf. See §8.
+
+> Implemented deviation: an earlier draft derived the public key from
+> `server.key` via `wg pubkey` at build time. `wg pubkey` reads the private key
+> on **stdin**, and wirebard's `subprocess` runner has no stdin piping (and
+> won't grow a shell to get `<()`), so the public key is a declared var instead.
+> Generate the pair once: `wg genkey | tee server.key | wg pubkey`.
 
 ---
 
@@ -274,10 +280,10 @@ JSON object; every log line goes to stderr** (contract point 1).
 }
 ```
 
-Every field is derivable: `endpoint/DNS/MTU` from `00-main.conf` vars, `type`
-from the `tunnel` var (split→isolated, full→proxy), `server_public_key` via
-`wg pubkey < server.key`, `address` from allocation, `client_config` from §4's
-policy table. All four contract guarantees hold: idempotent (§3), lone-JSON-on-
+Every field is derivable: `endpoint/DNS/MTU/server_public_key` from
+`00-main.conf` vars, `type` from the `tunnel` var (split→isolated, full→proxy),
+`address` from allocation, `client_config` from §4's policy table. All four
+contract guarantees hold: idempotent (§3), lone-JSON-on-
 stdout, private key never received, applied+persisted-before-exit-0 (§5.6),
 lock-safe (§6).
 
@@ -324,10 +330,13 @@ it's the one place the feature widens wirebard's remit.
 
 ---
 
-## 10. Milestones (wirebard's M-series)
+## 10. Milestones (wirebard's M-series) — all landed
 
-Each lands as one commit with the usual milestone storytelling; each stays
-inside the layering (pure core → OS boundary → thin command).
+Each landed as one commit with the usual milestone storytelling; each stays
+inside the layering (pure core → OS boundary → thin command). **M1–M6 are
+implemented and tested** (`ctest --preset debug`); the only unverified surface
+is the live `wg`/`systemctl` execution in `execute_apply`, which needs a real
+WireGuard host — `--dry-run` shows exactly what it runs.
 
 - **M1** — port `vars` (the `#=`/`${}`/env engine, ~verbatim from haladin) +
   `project`/`resolve_project_root` (default `/etc/wireguard`) + partial loading
