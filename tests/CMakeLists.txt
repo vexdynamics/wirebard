@@ -9,7 +9,9 @@ add_executable(wirebard_tests
     alloc_test.cpp
     check_test.cpp
     cli_test.cpp
+    contract_test.cpp
     fs_test.cpp
+    json_test.cpp
     net_test.cpp
     partial_test.cpp
     peer_test.cpp

@@ -7,9 +7,11 @@ add_library(wirebard_lib STATIC
     alloc.cpp
     check.cpp
     cli.cpp
+    contract.cpp
     directives.cpp
     error.cpp
     fs.cpp
+    json.cpp
     net.cpp
     partial.cpp
     peer.cpp
