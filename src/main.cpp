@@ -39,6 +39,10 @@ int main(int argc, char** argv) {
         return wirebard::cmd_apply(*args);
     if (cmd == "list")
         return wirebard::cmd_list(*args);
+    if (cmd == "peer")
+        return wirebard::cmd_peer(*args);
+    if (cmd == "network")
+        return wirebard::cmd_network(*args);
 
     // parse_args validated the command, so this is unreachable — but the
     // compiler can't prove that, and main must return something.

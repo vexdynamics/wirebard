@@ -36,4 +36,18 @@ struct Assignment {
 // [Interface] and any section that is neither contributes nothing.
 Result<std::vector<Assignment>> collect_assignments(std::span<const Partial> partials);
 
+// --- authoring (what `peer add` writes) -----------------------------------
+
+// The text of a new peer partial: the "# wirebard: name=" metadata comment plus
+// a [Peer] block. `address` is emitted as a /32 — exactly the host the server
+// routes to this peer. Pure.
+std::string render_peer_partial(std::string_view name, std::string_view public_key,
+                                uint32_t address);
+
+// Filename for a new peer partial: the next free NN- order prefix (10 past the
+// highest present, or 10 if none) plus a filesystem-safe form of `name`.
+// `existing` is the network's current partial paths (list_partials order).
+std::string next_peer_filename(std::span<const std::filesystem::path> existing,
+                               std::string_view name);
+
 } // namespace wirebard

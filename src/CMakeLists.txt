@@ -5,6 +5,7 @@
 # Zero third-party dependencies, by design (inherited from haladin).
 add_library(wirebard_lib STATIC
     alloc.cpp
+    apply.cpp
     check.cpp
     cli.cpp
     contract.cpp
@@ -19,8 +20,12 @@ add_library(wirebard_lib STATIC
     render.cpp
     subprocess.cpp
     vars.cpp
+    commands/apply.cpp
+    commands/build.cpp
     commands/check.cpp
-    commands/stubs.cpp
+    commands/list.cpp
+    commands/network.cpp
+    commands/peer.cpp
 )
 target_include_directories(wirebard_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 

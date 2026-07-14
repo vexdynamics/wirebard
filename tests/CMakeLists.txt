@@ -7,6 +7,7 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(wirebard_tests
     alloc_test.cpp
+    apply_test.cpp
     check_test.cpp
     cli_test.cpp
     contract_test.cpp

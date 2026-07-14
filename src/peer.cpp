@@ -1,5 +1,6 @@
 #include "peer.h"
 
+#include <algorithm>
 #include <format>
 #include <optional>
 
@@ -147,6 +148,55 @@ Result<std::vector<Assignment>> collect_assignments(std::span<const Partial> par
     }
 
     return out;
+}
+
+std::string render_peer_partial(std::string_view name, std::string_view public_key,
+                                uint32_t address) {
+    return std::format("# wirebard: name={}\n[Peer]\nPublicKey = {}\nAllowedIPs = {}/32\n", name,
+                       public_key, format_ipv4(address));
+}
+
+namespace {
+
+// Leading NN order prefix of a filename ("20-bob.conf" -> 20), or -1 if it
+// doesn't start with digits followed by '-'.
+int order_prefix(std::string_view filename) {
+    size_t i = 0;
+    while (i < filename.size() && filename[i] >= '0' && filename[i] <= '9')
+        ++i;
+    if (i == 0 || i >= filename.size() || filename[i] != '-')
+        return -1;
+    int n = 0;
+    for (size_t k = 0; k < i; ++k)
+        n = (n * 10) + (filename[k] - '0');
+    return n;
+}
+
+// A filesystem-safe form of a peer name: keep [A-Za-z0-9._-], fold anything
+// else to '-'. A name with no alphanumeric content (empty, or all
+// punctuation/slashes) falls back to "peer" rather than an ugly "----".
+std::string sanitize(std::string_view name) {
+    std::string out;
+    out.reserve(name.size());
+    bool has_alnum = false;
+    for (char c : name) {
+        const bool alnum =
+            (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
+        has_alnum = has_alnum || alnum;
+        out += (alnum || c == '.' || c == '_' || c == '-') ? c : '-';
+    }
+    return has_alnum ? out : "peer";
+}
+
+} // namespace
+
+std::string next_peer_filename(std::span<const std::filesystem::path> existing,
+                               std::string_view name) {
+    int highest = -1; // so an empty network yields 0 -> first peer at 10
+    for (const auto& p : existing)
+        highest = std::max(highest, order_prefix(p.filename().string()));
+    const int next = (highest < 0 ? 0 : highest) + 10;
+    return std::format("{:02}-{}.conf", next, sanitize(name));
 }
 
 } // namespace wirebard

@@ -11,9 +11,9 @@ namespace {
 // Which flags take a value vs. which are on/off switches. constexpr arrays:
 // baked into the binary at compile time, zero runtime setup cost.
 // (-C/--dir is handled by its own branch below, before this list is consulted)
-constexpr std::array kValueFlags = {"--env", "--out"};
-constexpr std::array kSwitchFlags = {"--verbose", "--help"};
-constexpr std::array kCommands = {"build", "check", "apply", "list"};
+constexpr std::array kValueFlags = {"--env", "--out", "--network", "--pubkey", "--name"};
+constexpr std::array kSwitchFlags = {"--verbose", "--help", "--json", "--dry-run"};
+constexpr std::array kCommands = {"build", "check", "apply", "list", "peer", "network"};
 
 // std::ranges::contains (C++23): like array.includes() / slices.Contains.
 bool is_value_flag(std::string_view s) { return std::ranges::contains(kValueFlags, s); }
@@ -83,19 +83,27 @@ std::string_view usage_text() {
     // is okay: the viewed data outlives every possible caller).
     return R"(wirebard — WireGuard config manager & compiler
 
-Usage: wirebard [-C DIR] <command> [network] [options]
+Usage: wirebard [-C DIR] <command> [args] [options]
 
 Commands:
-  check    Validate a network's sources without touching anything
-  build    Compile the sources into a wireguard config          (stub)
-  apply    Install the config and restart the interface          (stub)
-  list     Show what's defined where                             (stub)
+  check   [network]     Validate sources without touching anything
+  build   [network]     Compile sources into /etc/wireguard/<network>.conf
+  apply   [network]     Build, then install + reload the interface (live)
+  list                  Show networks and their peers
+  network list          Machine-readable network list (with --json)
+  peer add              Add a peer to a network (the baki contract)
+  peer remove           Remove a peer from a network
 
-With no [network], check runs over every network under partials/.
+With no [network], check/build/apply act on every network under partials/.
+
+peer add    --network N --pubkey BASE64 --name LABEL [--json] [--dry-run]
+peer remove --network N --pubkey BASE64 [--json] [--dry-run]
 
 Global:
   -C, --dir DIR   project directory (default: current dir, else /etc/wireguard)
   --env NAME      select a '#= NAME: ...' variable overlay
+  --json          machine-readable output (peer/network commands)
+  --dry-run       show what would happen; touch nothing (apply/peer)
   -h, --help      this text
   --verbose       echo external commands as they run
 

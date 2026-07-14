@@ -1,6 +1,7 @@
 // fs.h — small filesystem helpers: whole-file read, atomic write, temp dirs.
 #pragma once
 
+#include <chrono>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -34,6 +35,42 @@ Result<std::vector<std::filesystem::path>> list_files(const std::filesystem::pat
 // that's C++'s classic use-after-free. Fine as a parameter (borrowed for the
 // duration of the call), dangerous as a member.
 Result<void> atomic_write_file(const std::filesystem::path& dest, std::string_view contents);
+
+// Same atomic dance, but with explicit permission bits set BEFORE the rename,
+// so the destination is never momentarily world-readable. Mandatory for a
+// compiled interface config: it carries the server PrivateKey and must land
+// 0600 (perms::owner_read | perms::owner_write).
+Result<void> atomic_write_file(const std::filesystem::path& dest, std::string_view contents,
+                               std::filesystem::perms mode);
+
+// An advisory inter-process lock (flock), held for the object's lifetime. This
+// is the serialization `peer add`/`remove` need: concurrent callers must not
+// race the read→allocate→write→apply cycle on one network. RAII like TempDir —
+// the destructor releases it on every exit path.
+//
+// acquire() blocks up to `timeout`, retrying, then FAILS rather than hanging
+// forever (same "no unbounded wait" stance as subprocess timeouts). A timeout
+// of 0 means one non-blocking attempt.
+//
+// C++ LESSON: this owns a file descriptor (an int handle from the OS), the
+// same RAII/move-only shape as TempDir owning a path — acquire in a factory,
+// release in the destructor, forbid copies (two owners closing one fd = a
+// double-close bug), allow moves (transfer the fd, blank the source).
+class FileLock {
+public:
+    static Result<FileLock> acquire(const std::filesystem::path& lockfile,
+                                    std::chrono::milliseconds timeout = std::chrono::seconds{30});
+
+    FileLock(const FileLock&) = delete;
+    FileLock& operator=(const FileLock&) = delete;
+    FileLock(FileLock&& other) noexcept;
+    FileLock& operator=(FileLock&& other) noexcept;
+    ~FileLock();
+
+private:
+    explicit FileLock(int fd) : fd_(fd) {}
+    int fd_ = -1; // -1 == moved-from / not held; destructor does nothing
+};
 
 // A scratch directory that deletes itself.
 //

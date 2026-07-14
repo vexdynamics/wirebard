@@ -5,14 +5,17 @@
 #include <cstring>
 #include <format>
 #include <fstream>
+#include <optional>
 #include <random>
 #include <sstream>
 #include <system_error>
+#include <thread>
 #include <utility>
 
 // POSIX headers for fsync — C++ has no portable fsync, and a config tool for
 // a live daemon genuinely needs it. Mixing C APIs into C++ is normal and fine.
 #include <fcntl.h>
+#include <sys/file.h> // flock
 #include <unistd.h>
 
 namespace wirebard {
@@ -88,7 +91,12 @@ Result<std::string> read_file(const fs::path& path) {
     return std::move(buf).str();
 }
 
-Result<void> atomic_write_file(const fs::path& dest, std::string_view contents) {
+namespace {
+
+// The shared temp+fsync+rename dance. `mode`, when set, is applied to the temp
+// file BEFORE the rename, so the destination is never briefly world-readable.
+Result<void> write_atomic(const fs::path& dest, std::string_view contents,
+                          std::optional<fs::perms> mode) {
     // Temp file must be in the SAME directory as dest: rename(2) is only
     // atomic within one filesystem, and /tmp is often a different one.
     fs::path tmp = dest;
@@ -109,6 +117,20 @@ Result<void> atomic_write_file(const fs::path& dest, std::string_view contents) 
             return std::unexpected(io_error(tmp, "write failed"));
         }
     } // <- ofstream destructor closes the OS handle here; fsync needs it closed-or-flushed
+
+    // Tighten permissions on the temp file before it becomes visible under the
+    // real name. `replace` sets the bits exactly (not add/remove).
+    if (mode) {
+        std::error_code ec;
+        fs::permissions(tmp, *mode, fs::perm_options::replace, ec);
+        if (ec) {
+            std::error_code ec2;
+            fs::remove(tmp, ec2);
+            return std::unexpected(Error{.code = ErrorCode::io,
+                                         .message = std::format("chmod failed: {}", ec.message()),
+                                         .where = SourceLoc{.file = dest}});
+        }
+    }
 
     // fsync: force the bytes to disk. Without this, a power cut after rename
     // can leave an EMPTY renamed file (the rename metadata hit disk before
@@ -133,6 +155,70 @@ Result<void> atomic_write_file(const fs::path& dest, std::string_view contents) 
     // C++ LESSON: Result<void> still needs an explicit "success" — an empty
     // braced value. (expected<void, E> has a void success slot.)
     return {};
+}
+
+} // namespace
+
+Result<void> atomic_write_file(const fs::path& dest, std::string_view contents) {
+    return write_atomic(dest, contents, std::nullopt);
+}
+
+Result<void> atomic_write_file(const fs::path& dest, std::string_view contents, fs::perms mode) {
+    return write_atomic(dest, contents, mode);
+}
+
+Result<FileLock> FileLock::acquire(const fs::path& lockfile, std::chrono::milliseconds timeout) {
+    // O_CREAT so the lockfile springs into existence; 0600 because it lives
+    // beside secret-bearing configs. We hold the fd, not the file's contents.
+    int fd = ::open(lockfile.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
+    if (fd < 0) {
+        return std::unexpected(io_error(lockfile, "cannot open lock file"));
+    }
+
+    // Non-blocking attempts on a fixed cadence until the deadline. flock ties
+    // the lock to THIS open file description, so a second acquire() — even in
+    // the same process — blocks, which is exactly what serializes callers.
+    constexpr auto step = std::chrono::milliseconds{50};
+    auto waited = std::chrono::milliseconds{0};
+    for (;;) {
+        if (::flock(fd, LOCK_EX | LOCK_NB) == 0) {
+            return FileLock(fd);
+        }
+        if (errno != EWOULDBLOCK) {
+            Error e = io_error(lockfile, "flock failed");
+            ::close(fd);
+            return std::unexpected(std::move(e));
+        }
+        if (waited >= timeout) {
+            ::close(fd);
+            return std::unexpected(
+                Error{.code = ErrorCode::io,
+                      .message = "another wirebard is holding this network's lock",
+                      .where = SourceLoc{.file = lockfile}});
+        }
+        std::this_thread::sleep_for(step);
+        waited += step;
+    }
+}
+
+FileLock::FileLock(FileLock&& other) noexcept : fd_(std::exchange(other.fd_, -1)) {}
+
+FileLock& FileLock::operator=(FileLock&& other) noexcept {
+    if (this != &other) {
+        if (fd_ >= 0) {
+            ::flock(fd_, LOCK_UN);
+            ::close(fd_);
+        }
+        fd_ = std::exchange(other.fd_, -1);
+    }
+    return *this;
+}
+
+FileLock::~FileLock() {
+    if (fd_ >= 0) {
+        ::flock(fd_, LOCK_UN); // closing would release it anyway; explicit is clearer
+        ::close(fd_);
+    }
 }
 
 Result<TempDir> TempDir::create(std::string_view prefix) {

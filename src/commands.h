@@ -27,4 +27,8 @@ int cmd_check(const ParsedArgs& args);
 int cmd_apply(const ParsedArgs& args);
 int cmd_list(const ParsedArgs& args);
 
+// Command families: the subcommand is positionals[0] (add/remove, list).
+int cmd_peer(const ParsedArgs& args);    // peer add|remove — the baki contract
+int cmd_network(const ParsedArgs& args); // network list
+
 } // namespace wirebard

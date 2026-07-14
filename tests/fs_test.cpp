@@ -1,5 +1,6 @@
 #include "fs.h"
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 
@@ -87,6 +88,52 @@ TEST(Fs, TempDirMoveTransfersOwnership) {
     EXPECT_TRUE(fs::exists(p));
     // ASan would flag a double-delete here if move semantics were wrong;
     // both destructors run at scope end, but only b's does real work.
+}
+
+TEST(Fs, AtomicWriteWithModeIsNotWorldReadable) {
+    auto dir = wirebard::TempDir::create("fs-test");
+    ASSERT_TRUE(dir.has_value());
+    fs::path p = dir->path() / "secret.conf";
+
+    auto w = wirebard::atomic_write_file(p, "PrivateKey = xxx\n",
+                                         fs::perms::owner_read | fs::perms::owner_write);
+    ASSERT_TRUE(w.has_value());
+    // Exactly 0600: owner rw, nothing for group/other.
+    EXPECT_EQ(fs::status(p).permissions(), fs::perms::owner_read | fs::perms::owner_write);
+}
+
+TEST(Fs, FileLockIsExclusiveThenReleasesOnScopeExit) {
+    auto dir = wirebard::TempDir::create("fs-test");
+    ASSERT_TRUE(dir.has_value());
+    fs::path lockfile = dir->path() / ".lock";
+
+    {
+        auto held = wirebard::FileLock::acquire(lockfile, std::chrono::milliseconds{0});
+        ASSERT_TRUE(held.has_value());
+
+        // A second acquire on the same file (different open description) must
+        // fail once its short timeout elapses.
+        auto contended = wirebard::FileLock::acquire(lockfile, std::chrono::milliseconds{100});
+        EXPECT_FALSE(contended.has_value());
+    } // held's destructor releases the lock here
+
+    // Now it's free again.
+    auto reacquired = wirebard::FileLock::acquire(lockfile, std::chrono::milliseconds{0});
+    EXPECT_TRUE(reacquired.has_value());
+}
+
+TEST(Fs, FileLockMoveTransfersTheLock) {
+    auto dir = wirebard::TempDir::create("fs-test");
+    ASSERT_TRUE(dir.has_value());
+    fs::path lockfile = dir->path() / ".lock";
+
+    auto a = wirebard::FileLock::acquire(lockfile, std::chrono::milliseconds{0});
+    ASSERT_TRUE(a.has_value());
+    wirebard::FileLock b = std::move(*a); // b holds it now; a is empty
+
+    // Still locked: a fresh attempt fails. (ASan would catch a double-close.)
+    auto contended = wirebard::FileLock::acquire(lockfile, std::chrono::milliseconds{0});
+    EXPECT_FALSE(contended.has_value());
 }
 
 } // namespace
