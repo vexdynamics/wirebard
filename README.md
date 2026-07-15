@@ -250,4 +250,7 @@ touches the live interface until the next `apply` — inspect with
 - House rules live in CLAUDE.md; the conventions (errors as values, pure core
   vs OS boundary vs thin commands, determinism, loud failure, secrets never in
   logs) are non-negotiable.
-```
+
+## License
+
+[MIT](LICENSE) © 2026 vexdynamics
